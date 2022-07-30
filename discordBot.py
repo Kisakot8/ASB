@@ -15,15 +15,26 @@ TOKEN = ""
 console = [482934173032775683] #Kisakot
 quoteBookID = 123456789012345678 #quote-book
 
+
+# ================ INITIALISING ================
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+class MyBot(commands.Bot):
+    async def setup_hook(self):
+        print("this works")
+
+bot = MyBot(intents = intents, command_prefix=".", owner_ids=set(console))
+
 # ================ CODE ================
-bot = commands.Bot(command_prefix=".", owner_ids=set(console))
 
 def addQuotesToFile(quotes): #needed for .addallquotes and .addquotes
     for qMsg in quotes: #checks if quote is already in the file
         quote = qMsg.content #content of quote
         sender = qMsg.author #person who sent quote
-        with open ("discordQuotes.txt","r",encoding="utf-8") as quoteFile: #put utf-8 otherwise it dies
-            currentQuotes = quoteFile.readlines()
+        with open ("discordQuotes.txt","r",encoding="utf-8") as quoteFileR:
+            currentQuotes = quoteFileR.readlines()
             if (str(quote) + " - " + str(sender) + "\n") in currentQuotes:
                 quotes.pop( quotes.index(qMsg) )
 
@@ -33,65 +44,24 @@ def addQuotesToFile(quotes): #needed for .addallquotes and .addquotes
         if (quote.count("'") >= 2) or (quote.count('"') >= 2) or (("“" in quote) or ("‘" in quote)): #text quote
             if "\n" in quote: #multi-line support
                 quote = quote.replace("\n","Ξ") #Ξ = new line symbol for multi-line quotes
-            with open ("discordQuotes.txt","a",encoding="utf-8") as quoteFile: #put utf-8 otherwise it dies
+            with open ("discordQuotes.txt","a",encoding="utf-8") as quoteFile:
                 quoteFile.write(str(quote) + " - " + str(sender))
                 quoteFile.write("\n")
             
         elif qMsg.attachments: #attachment (image) quote
             attachment = qMsg.attachments[0]
             attachmentUrl = attachment.url
-            with open ("discordQuotes.txt","a",encoding="utf-8") as quoteFile: #put utf-8 otherwise it dies
+            with open ("discordQuotes.txt","a",encoding="utf-8") as quoteFile:
                 quoteFile.write(str(attachmentUrl) + " " + str(quote) + " - " + str(sender))
                 quoteFile.write("\n")
 
-    with open ("discordQuotes.txt","r",encoding="utf-8") as quoteFileR: #put utf-8 otherwise it dies
+    with open ("discordQuotes.txt","r",encoding="utf-8") as quoteFileR:
         lines = quoteFileR.readlines()
         return len(lines)
 
 @bot.event
 async def on_ready():
     print("We have logged in as {0.user}".format(bot))
-
-@bot.command()
-async def ping(ctx):
-    await ctx.send(f"Pong! {round(bot.latency * 1000)}ms")
-
-@bot.command(pass_context=True)
-@commands.has_role("mods")
-async def createq(ctx):
-    if ctx.channel == "❗teacher-comp❗":
-        await ctx.message.delete()
-        with open("teacherListDone.txt","r") as doneFileR:
-            with open ("teacherList.txt","r") as listFileR:
-                lb = doneFileR.readlines()
-                lst = listFileR.readlines()
-            roundNum = len(lb)
-            if roundNum > len(lst):
-                print("Error: no teachers left.")
-                return None
-            teacher = lst[roundNum]
-            teacherLst = teacher.split(" ")
-            title = str(teacherLst[0])
-            name = str(teacherLst[1])
-            emoji = str(teacherLst[2])
-            new_msg = await message.channel.send("""`ROUND """ + str(roundNum+1) + """: """ + title + """ """ + name + """`
-
-**Teaching Ability:** **WORST** :one: :two: :three: :four: **BEST**
-**Personality:** **WORST** :red_circle: :orange_circle: :yellow_circle: :green_circle: **BEST**
-:bangbang:__Reminder: Only vote if you have experience (either with teaching or personality)__ :bangbang:
-
-<@&990316741093646376> • """ + emoji)
-            await new_msg.add_reaction("1️⃣") #gotta make it react to its own message
-            await new_msg.add_reaction("2️⃣")
-            await new_msg.add_reaction("3️⃣")
-            await new_msg.add_reaction("4️⃣")
-            new_msg = await message.channel.send("** **")
-            await new_msg.add_reaction("\U0001F534")
-            await new_msg.add_reaction("\U0001F7E0")
-            await new_msg.add_reaction("\U0001F7E1")
-            await new_msg.add_reaction("\U0001F7E2")
-    with open("teacherListDone.txt","a") as doneFileA:
-        doneFileA.write(teacher)
 
 @bot.event
 async def on_message(message):
@@ -157,6 +127,49 @@ async def on_message(message):
 #             await message.channel.send("Wrong format! Please use NAME DD/MM/YYYY")
 #             await message.delete()
 
+# ================ COMMANDS ================
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f"Pong! {round(bot.latency * 1000)}ms")
+
+@bot.command(pass_context=True)
+@commands.has_role("mods")
+async def createq(ctx):
+    if ctx.channel == "❗teacher-comp❗":
+        await ctx.message.delete()
+        with open("teacherListDone.txt","r") as doneFileR:
+            with open ("teacherList.txt","r") as listFileR:
+                lb = doneFileR.readlines()
+                lst = listFileR.readlines()
+            roundNum = len(lb)
+            if roundNum > len(lst):
+                print("Error: no teachers left.")
+                return None
+            teacher = lst[roundNum]
+            teacherLst = teacher.split(" ")
+            title = str(teacherLst[0])
+            name = str(teacherLst[1])
+            emoji = str(teacherLst[2])
+            new_msg = await message.channel.send("""`ROUND """ + str(roundNum+1) + """: """ + title + """ """ + name + """`
+
+**Teaching Ability:** **WORST** :one: :two: :three: :four: **BEST**
+**Personality:** **WORST** :red_circle: :orange_circle: :yellow_circle: :green_circle: **BEST**
+:bangbang:__Reminder: Only vote if you have experience (either with teaching or personality)__ :bangbang:
+
+<@&990316741093646376> • """ + emoji)
+            await new_msg.add_reaction("1️⃣")
+            await new_msg.add_reaction("2️⃣")
+            await new_msg.add_reaction("3️⃣")
+            await new_msg.add_reaction("4️⃣")
+            new_msg = await message.channel.send("** **")
+            await new_msg.add_reaction("\U0001F534")
+            await new_msg.add_reaction("\U0001F7E0")
+            await new_msg.add_reaction("\U0001F7E1")
+            await new_msg.add_reaction("\U0001F7E2")
+    with open("teacherListDone.txt","a") as doneFileA:
+        doneFileA.write(teacher)
+
 @bot.command()
 async def quote(ctx):
     with open ("discordQuotes.txt","r",encoding="utf-8") as quoteFile: #always put utf-8 for the file
@@ -172,7 +185,7 @@ async def addquotes(ctx,*args):
     if len(args) != 1:
         await message.channel.send("Incorrect arguments! Syntax: .addquotes <number>")
     else:
-        quoteAmount = args[1]
+        quoteAmount = args[0]
         if not quoteAmount.isnumeric():
             await message.channel.send("That's not a number! Syntax: .addquotes <number>")
 # actual code for adding quotes beyond this point
@@ -226,5 +239,5 @@ async def messageInterval(ctx,message):
 # async def on_reaction_add(reaction,user): #test message on reaction
 #     await reaction.message.channel.send(f"{user} reacted with {reaction.emoji}")
 
-if __name__ == "__main__":
-    bot.run(TOKEN)
+
+bot.run(TOKEN)
