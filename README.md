@@ -9,7 +9,7 @@ For privacy/security reasons, the token and the channel ID's have been taken awa
 
 **QUOTES**
 - Adding quotes sent in quote-book to a txt file automatically _if bot is online_
-	- Manually adds all quotes in quote-book with `.addallquotes`
+	- Manually adds all quotes in quote-book with `.addallquotes` or specified amount with `.addquotes <number>`
 - Send random quote with `.quote`
 
 **POLLS**
