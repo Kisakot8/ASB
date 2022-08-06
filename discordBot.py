@@ -101,11 +101,12 @@ async def checkForBdays():
             year, month, day = date.split("-")
         if str(today.strftime("%m-%d")) == f"{month}-{day}":
             bdays = bot.get_channel(bdaysID)
-            if bdays.last_message_id != None:
+            msgs = [msg async for msg in bdays.history(limit=None)]
+            if len(msgs) > 0:
                 lastMsg = await bdays.fetch_message(bdays.last_message_id)
-                if {mention} not in lastMsg.content:
+                if str(mention) not in lastMsg.content:
                     await bdays.send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
-            elif bdays.last_message_id == None:
+            else:
                 await bot.get_channel(bdaysID).send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
 
 async def checkForNewQuotes():
@@ -224,13 +225,13 @@ async def setbday(ctx,name=None,day=None,month=None,year=None):
                         bdayFileRP.write(line) 
                     bdayFileRP.write(newLine)
                 await ctx.message.delete()
-                await ctx.send(f"Birthday edited to {day}/{month}/{year}", delete_after=10)
+                await ctx.send(f"Birthday edited to {day}/{month}/{year} ✨", delete_after=10)
                 await bot.get_channel(logsID).send(f"{ctx.author.mention} edited birthday to {day}/{month}/{year}")
             elif newUser:
                 with open(bdaysPath,"a",encoding="utf-8") as bdayFileA:
                     bdayFileA.write(newLine)
                 await ctx.message.delete()
-                await ctx.send(f"Birthday added as {day}/{month}/{year}", delete_after=10)
+                await ctx.send(f"Birthday added as {day}/{month}/{year} ✨", delete_after=10)
                 await bot.get_channel(logsID).send(f"{ctx.author.mention} set birthday to {day}/{month}/{year}")
         else:
             await ctx.message.delete()
