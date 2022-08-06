@@ -10,25 +10,36 @@
 # For emoji unicode characters, change + to 000 and place \ in front of it
 # For the quotes file always add ,encoding="utf-8" in the brackets ie: (quotesPath,"r",encoding="utf-8")
 # Character Ξ reserved for multi-line quote support (check quote functions)
+# Retired commands (probably) won't have any new functionality added!
 
 # ================ LIBRARIES ================
 import asyncio
+import datetime
 import random
 import time
 import discord
 from discord.ext import tasks, commands
 
 # ================ VARIABLES ================
-TOKEN = ""
-console = [482934173032775683] #Kisakot
-quoteBookID = 0 #quote-book
-logsID = 0 #asb-logs
-ultralogsID = 0 #asb-ultralogs (Bot Testing server)
-modsID = 0 #mods role
-guildID = 0 #server/guild ID
-bdaysPath = r""
-dataPath = r""
-quotesPath = r""
+
+with open(r"C:\Users\Public\discordSecrets.txt","r",encoding="utf-8") as secrets:
+    lines = secrets.readlines()
+    for i in range(len(lines)):
+        line = lines[i]
+        lines[i] = line.strip("\n")
+        lines[i] = line.split("_")
+    TOKEN = str(lines[0][0])
+    console = [int(lines[1][0])]
+    quoteBookID = int(lines[2][0])
+    logsID = int(lines[3][0])
+    birthdaysID = int(lines[4][0])
+    bdaysID = int(lines[5][0])
+    ultralogsID = int(lines[6][0])
+    modsID = int(lines[7][0])
+    guildID = int(lines[8][0])
+    bdaysPath = rf"{str(lines[9][0])}"
+    dataPath = rf"{str(lines[10][0])}"
+    quotesPath = rf"{str(lines[11][0])}"
 
 # ================ INITIALISING ================
 
@@ -38,6 +49,7 @@ intents.message_content = True
 async def main():
     async with bot:
         bot.loop.create_task(checkForNewQuotes())
+        bot.loop.create_task(checkForBdays())
         bot.loop.create_task(sayHello())
         await bot.start(TOKEN)
 
@@ -78,6 +90,24 @@ def addQuotesToFile(quotes): #needed for .addallquotes and .addquotes
         lines = quoteFileR.readlines()
         return len(lines)
 
+async def checkForBdays():
+    await bot.wait_until_ready()
+    today = datetime.date.today()
+    with open(bdaysPath,"r",encoding="utf-8") as bdayFileR:
+        lines = bdayFileR.readlines()
+        for line in lines:
+            line = line.rstrip("\n")
+            user, mention, date = line.split(" ")
+            year, month, day = date.split("-")
+        if str(today.strftime("%m-%d")) == f"{month}-{day}":
+            bdays = bot.get_channel(bdaysID)
+            if bdays.last_message_id != None:
+                lastMsg = await bdays.fetch_message(bdays.last_message_id)
+                if {mention} not in lastMsg.content:
+                    await bdays.send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
+            elif bdays.last_message_id == None:
+                await bot.get_channel(bdaysID).send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
+
 async def checkForNewQuotes():
     await bot.wait_until_ready()
     quoteBook = bot.get_channel(quoteBookID)
@@ -97,7 +127,7 @@ async def checkForNewQuotes():
             newQuoteCount = addQuotesToFile(newQuotes)
             logs = bot.get_channel(logsID)
             await logs.send(f"{msgCount} new messages detected in <#{quoteBookID}>.")
-            await logs.send(f"Added {newQuoteCount-oldQuoteCount} quotes to discordQuotes.txt. New length = {len(newQuoteCount)}")
+            await logs.send(f"Added {newQuoteCount-oldQuoteCount} quotes to discordQuotes.txt. New length = {newQuoteCount}")
 
 async def sayHello():
     await bot.wait_until_ready()
@@ -174,6 +204,42 @@ async def on_message(message): # All on_message
 # ================ USER COMMANDS ================
 
 @bot.command()
+async def setbday(ctx,name=None,day=None,month=None,year=None):
+    if (name and day and month and year) != None:
+        if name.isalpha() and day.isnumeric() and month.isnumeric() and year.isnumeric() and len(day) == 2 and len(month) == 2 and len(year) == 4 and str(ctx.channel == "birthdays") and int(day) in range(1,32) and int(month) in range(1,13) and int(year) in range(2000,int(datetime.date.today().strftime("%Y"))):
+            user = ctx.author
+            userMention = ctx.author.mention
+            with open(bdaysPath,"r",encoding="utf-8") as bdayFileR:
+                lines = bdayFileR.readlines()
+                newLine = f"{user} {userMention} {year}-{month}-{day}\n"
+                newUser = True
+                for line in lines:
+                    if str(user) in line:
+                        lines.remove(line)
+                        newUser = False
+                        break
+            if not newUser:
+                with open(bdaysPath,"r+",encoding="utf-8") as bdayFileRP:
+                    for line in lines:
+                        bdayFileRP.write(line) 
+                    bdayFileRP.write(newLine)
+                await ctx.message.delete()
+                await ctx.send(f"Birthday edited to {day}/{month}/{year}", delete_after=10)
+                await bot.get_channel(logsID).send(f"{ctx.author.mention} edited birthday to {day}/{month}/{year}")
+            elif newUser:
+                with open(bdaysPath,"a",encoding="utf-8") as bdayFileA:
+                    bdayFileA.write(newLine)
+                await ctx.message.delete()
+                await ctx.send(f"Birthday added as {day}/{month}/{year}", delete_after=10)
+                await bot.get_channel(logsID).send(f"{ctx.author.mention} set birthday to {day}/{month}/{year}")
+        else:
+            await ctx.message.delete()
+            await ctx.send(f"Syntax = in <#{birthdaysID}> .setbday <name> DD MM YYYY", delete_after=10)
+    else:
+        await ctx.message.delete()
+        await ctx.send(f"Syntax = in <#{birthdaysID}> .setbday <name> DD MM YYYY", delete_after=10)
+
+@bot.command()
 async def ping(ctx):
     await ctx.send(f"Pong! {round(bot.latency * 1000)}ms")
 
@@ -227,7 +293,7 @@ async def createq(ctx): #retired
 
 @bot.command(pass_context=True)
 @commands.has_role("mods")
-async def addquotes(ctx,*args):
+async def addquotes(ctx,*args): #retired
     if len(args) != 1:
         await ctx.send("Incorrect arguments! Syntax: .addquotes <number>")
     else:
@@ -254,6 +320,7 @@ async def addallquotes(ctx):
     quotesAdded = addQuotesToFile(quotes)
     #adding to file in def addQuotesToFile(quotes)
     await ctx.channel.send(f"Message transfer of {quotesAdded} complete. Check discordQuotes.txt")
+    await bot.get_channel(logsID).send(f"{ctx.author.mention} executed .addallquotes")
 
 # ================ OWNER COMMANDS ================
 
@@ -276,9 +343,9 @@ async def getchannels(ctx):
     allChannels = guild.channels
     for channel in allChannels:
         if str(channel.type) == "text":
-            print(channel)
-            channelsListed.append(channel)
-    await ctx.send(f"{', '.join(channelsListed)}")
+            channelsListed.append(channel.name)
+    allChannelsStr = ', '.join(channelsListed)
+    await ctx.send(allChannelsStr)
 
 @bot.command(pass_context=True)
 @commands.is_owner()
@@ -313,6 +380,7 @@ async def shutdown(ctx):
 #     await bot.add_roles(member,role)
 
 
+
 # ████████╗███████╗░██████╗████████╗██╗███╗░░██╗░██████╗░
 # ╚══██╔══╝██╔════╝██╔════╝╚══██╔══╝██║████╗░██║██╔════╝░
 # ░░░██║░░░█████╗░░╚█████╗░░░░██║░░░██║██╔██╗██║██║░░██╗░
@@ -322,10 +390,15 @@ async def shutdown(ctx):
 
 @bot.command(pass_context=True)
 @commands.is_owner()
+async def testmention(ctx):
+    print(ctx.author.mention)
+
+@bot.command(pass_context=True)
+@commands.is_owner()
 async def testquotes(ctx):
     with open (quotesPath,"r",encoding="utf-8") as quoteFileR:
         lines = quoteFileR.readlines()
-        print(len(lines))
+        await ctx.send(f"Lines: {len(lines)}")
         await ctx.send(file=discord.File(quotesPath))
 
 @bot.command(pass_context=True)
