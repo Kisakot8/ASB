@@ -22,7 +22,7 @@ from discord.ext import tasks, commands
 
 # ================ VARIABLES ================
 
-with open(r"C:\Users\Public\discordSecrets.txt","r",encoding="utf-8") as secrets:
+with open("discordSecrets.txt","r",encoding="utf-8") as secrets:
     lines = secrets.readlines()
     for i in range(len(lines)):
         line = lines[i]
@@ -37,9 +37,10 @@ with open(r"C:\Users\Public\discordSecrets.txt","r",encoding="utf-8") as secrets
     ultralogsID = int(lines[6][0])
     modsID = int(lines[7][0])
     guildID = int(lines[8][0])
-    bdaysPath = rf"{str(lines[9][0])}"
-    dataPath = rf"{str(lines[10][0])}"
-    quotesPath = rf"{str(lines[11][0])}"
+    bdaysPath = rf"{str(lines[9][0])}".strip("\n")
+    dataPath = rf"{str(lines[10][0])}".strip("\n")
+    quotesPath = rf"{str(lines[11][0])}".strip("\n")
+    lockedPath = rf"{str(lines[12][0])}".strip("\n")
 
 # ================ INITIALISING ================
 
@@ -99,29 +100,39 @@ async def checkForBdays():
             line = line.rstrip("\n")
             user, mention, date = line.split(" ")
             year, month, day = date.split("-")
-        if str(today.strftime("%m-%d")) == f"{month}-{day}":
-            bdays = bot.get_channel(bdaysID)
-            msgs = [msg async for msg in bdays.history(limit=None)]
-            if len(msgs) > 0:
-                lastMsg = await bdays.fetch_message(bdays.last_message_id)
-                if str(mention) not in lastMsg.content:
-                    await bdays.send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
-            else:
-                await bot.get_channel(bdaysID).send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
+            if str(today.strftime("%m-%d")) == f"{month}-{day}":
+                bdays = bot.get_channel(bdaysID)
+                await bdays.send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉!")
+                # msgs = [msg async for msg in bdays.history(limit=None)]
+                # if len(msgs) > 0:
+                #     lastMsg = await bdays.fetch_message(bdays.last_message_id)
+                #     if str(mention) not in lastMsg.content:
+                #         await bdays.send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉! @everyone")
+                # else:
+                #     await bot.get_channel(bdaysID).send(f"Happy birthday to {mention}‼️ They are now {int(today.strftime('%Y')) - int(year)} 🎉🎉! @everyone")
 
 async def checkForNewQuotes():
     await bot.wait_until_ready()
     quoteBook = bot.get_channel(quoteBookID)
     newestMsgID = quoteBook.last_message_id
+    print(newestMsgID) #debug message
     with open (dataPath,"r",encoding="utf-8") as dataFileR:
         prevMsgID = int(dataFileR.readline())
-        if prevMsgID != newestMsgID:
-            msgCount = 0
-            async for msg in quoteBook.history():
-                msgID = msg.id
-                if msgID == prevMsgID:
-                    break
+    try:
+        await quoteBook.fetch_message(prevMsgID)
+    except discord.NotFound:
+        print("discord.NotFound error; message not found, leaving function.")
+        return
+    if prevMsgID != newestMsgID:
+        msgCount = 0
+        async for msg in quoteBook.history():
+            msgID = int(msg.id)
+            if msgID == prevMsgID:
+                break
+            if msgID != prevMsgID:
                 msgCount += 1
+        if msgCount > 0:
+            print(f"msgCount = {msgCount}") #debug message
             newQuotes = [msg async for msg in quoteBook.history(limit=msgCount)]
             with open(quotesPath,"r",encoding="utf-8") as quoteFileR:
                 oldQuoteCount = len(quoteFileR.readlines())
@@ -257,6 +268,63 @@ async def quote(ctx):
 
 @bot.command(pass_context=True)
 @commands.has_role("mods")
+async def masslockdown(ctx):
+    await ctx.send("Mass lockdown initiated...")
+    for channel in ctx.guild.channels:
+        perms = channel.overwrites_for(ctx.guild.default_role)
+        if perms.read_messages == True:
+            perms.read_messages = False
+            await channel.set_permissions(ctx.guild.default_role, overwrite=perms, reason="Mass Lockdown")
+            await channel.send(f"{channel.mention} ***is now in lockdown.***")
+
+            with open (lockedPath,"a", encoding="utf-8") as channelsFile:
+                channelsFile.write(channel.id)
+
+    await ctx.send("Lockdown complete.")
+    await bot.get_channel(logsID).send(f"{ctx.author.mention} executed .masslockdown")
+
+@bot.command(pass_context=True)
+@commands.is_owner()
+async def massunlock(ctx): # ================= kinda doesnt work lol ===========================
+    await ctx.send("Mass unlock initiated...")
+    with open (lockedPath,"r", encoding="utf-8") as channelsFile:
+        for line in channelsFile.readlines():
+            line.rstrip("\n")
+            channel = bot.get_channel(line)
+            perms = channel.overwrites_for(ctx.guild.default_role)
+            if perms.read_messages == False:
+                perms.read_messages = True
+                await channel.set_permissions(ctx.guild.default_role, overwrite=perms, reason="Mass Unlock")
+    open(lockedPath,"w", encoding="utf-8").close()
+    await ctx.send("Mass unlock successful.")
+    await bot.get_channel(logsID).send(f"{ctx.author.mention} executed .massunlock")
+
+@bot.command(pass_context=True)
+@commands.has_role("mods")
+async def lockdown(ctx):
+    perms = ctx.channel.overwrites_for(ctx.guild.default_role)
+    if perms.read_messages == True:
+        perms.read_messages = False
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=perms, reason="Lockdown")
+        await ctx.send(f"{ctx.channel.mention} ***is now in lockdown.***")
+        await bot.get_channel(logsID).send(f"{ctx.author.mention} executed .lockdown in {ctx.channel.mention}")
+    else:
+        await ctx.send(f"Error: {ctx.channel.mention} is already locked to \@everyone.")
+
+@bot.command(pass_context=True)
+@commands.has_role("mods")
+async def unlock(ctx):
+    perms = ctx.channel.overwrites_for(ctx.guild.default_role)
+    if perms.read_messages == False:
+        perms.read_messages = True
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=perms, reason="Unlock")
+        await ctx.send(f"{ctx.channel.mention} ***has been unlocked.***")
+        await bot.get_channel(logsID).send(f"{ctx.author.mention} executed .unlock in {ctx.channel.mention}")
+    else:
+        await ctx.send(f"Error: {ctx.channel.mention} is already unlocked to \@everyone.")
+
+@bot.command(pass_context=True)
+@commands.has_role("mods")
 async def createq(ctx): #retired
     if ctx.channel == "❗teacher-comp❗":
         await ctx.message.delete()
@@ -307,9 +375,9 @@ async def addquotes(ctx,*args): #retired
             quoteBook = bot.get_channel(quoteBookID)
             quotes = [quote async for quote in quoteBook.history(limit=int(quoteAmount))] #reads quoteAmount number of messages in channel
             await ctx.send(f"Message transfer of {quoteAmount} messages started. This shouldn't take that long.")
-            quotesAdded = addQuotesToFile(quotes) #adding to file in def addQuotesToFile(quotes)
+            quotesAdded = addQuotesToFile(quotes) #adding to file in     def addQuotesToFile(quotes)
             await ctx.send(f"Message transfer of {quotesAdded} complete. Check discordQuotes.txt")
-
+ 
 @bot.command(pass_context=True)
 @commands.has_role("mods")
 async def addallquotes(ctx):
@@ -352,19 +420,37 @@ async def getchannels(ctx):
 @commands.is_owner()
 async def getguild(ctx):
     guildid = ctx.message.guild.id
-    ctx.send(guildid)
+    await ctx.send(guildid)
     
 @bot.command(pass_context=True)
 @commands.is_owner()
 async def shutdown(ctx):
+    await ctx.channel.send("Bot shutting down. Cya!")
+    print("Shutdown initiated...")
     quoteBook = bot.get_channel(quoteBookID)
     newestMsg = quoteBook.last_message_id
+    print(newestMsg)
     with open (dataPath,"w",encoding="utf-8") as dataFileW:
         dataFileW.write(str(newestMsg))
-    await ctx.channel.send("Bot shutting down. Cya!")
-    time.sleep(3)
+    time.sleep(2)
     await bot.get_channel(logsID).send("Alphabet Soup Bot now shut down.")
     await bot.close()
+
+@bot.command(pass_context=True)
+@commands.is_owner()
+async def powershutdown(ctx):
+    await bot.close()
+
+@bot.command(pass_context=True)
+@commands.is_owner()
+async def checkformsg(ctx,channelid: int,msgid: int):
+    channel = bot.get_channel(channelid)
+    try:
+        msg = await channel.fetch_message(msgid)
+    except discord.NotFound:
+        await ctx.send("Message not found")
+    else:
+        await ctx.send(f"Message found. Contents: {msg.contents}")
 
 # @bot.command(pass_context=True)
 # @commands.is_owner()
@@ -391,8 +477,51 @@ async def shutdown(ctx):
 
 @bot.command(pass_context=True)
 @commands.is_owner()
-async def testmention(ctx):
-    print(ctx.author.mention)
+async def startconsequences(ctx):
+    await ctx.send(f"{ctx.author.mention}, please mention everyone who is playing (you do not have to mention yourself)")
+    players = []
+
+    def check(msg, user):
+        nonlocal players
+        players = msg.content.split(" ")
+        allPlayersAreMentions = True
+        players.insert(0, ctx.author.mention)
+        for player in players:
+            if "<@" not in player or ">" not in player:
+                allPlayersAreMentions = False
+            elif players.count(player) > 1:
+                players.remove(player)
+        return allPlayersAreMentions and msg.channel == ctx.channel and user == ctx.author
+    
+    try:
+        msg, ctx.author = await bot.wait_for("message", check=check, timeout = 10.0)
+
+    except asyncio.TimeoutError:
+        await ctx.send(f"Command expired, {ctx.author.mention} didn't enter a number :(")
+    
+    else:
+        ctx.send(f"Great! We're playing with {len(players)} players.")
+        story = ""
+        complete = False
+        while not complete:
+            ctx.send("Alright, let's start the story...")
+            ctx.send(f"{players[0]}, begin with the first word. **The game ends when someone enters 'end'.")
+
+            def storyCheck(msg, user):
+                if len(msg.content.split(" ")) != 1:
+                    ctx.send(f"{user.mention} entered multiple words :(")
+                    return False
+                return len(msg.content.split(" ")) == 1
+
+            for player in players:
+                try:
+                    word = await bot.wait_for("message", check=storyCheck, timeout=15.0)
+                    if word.lower() == "end":
+                        ctx.send(f"Excellent! The final story was: {story}")
+                        return
+                    story += word
+                except asyncio.TimeoutError:
+                    ctx.send(f"{player} took too long (>15s) :(")
 
 @bot.command(pass_context=True)
 @commands.is_owner()
