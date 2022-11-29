@@ -395,6 +395,41 @@ async def addallquotes(ctx):
 
 @bot.command(pass_context=True)
 @commands.is_owner()
+async def setstatus(ctx,mode,msg,presence='online',link='',*args):
+    if (len(args) != 0) or (mode.lower() not in ['playing','streaming','listening','watching','clear']) or (link == '' and mode.lower() == 'streaming') or (presence.lower() not in ['online','idle','dnd','offline']):
+        await ctx.send('Wrong format! Use: .setstatus playing/streaming/listening/watching "message"/clear online/idle/dnd/offline [url if mode=streaming]')
+        return
+    clear_activity = False
+    if mode.lower() == 'clear':
+        clear_activity = True
+        set_activity = None
+    if not clear_activity:
+        finalmsg = msg
+        # Setting the activity:
+        if mode.lower() == 'playing':
+            set_activity = discord.Game(name=str(msg))
+        elif mode.lower() == 'streaming':
+            set_activity = discord.Streaming(name=str(msg), url=link.lower())
+            finalmsg = f'{msg} {str(link)}'
+        elif mode.lower() == 'listening':
+            set_activity = discord.Activity(type=discord.ActivityType.listening, name=str(msg))
+        elif mode.lower() == 'watching':
+            set_activity = discord.Activity(type=discord.ActivityType.watching, name=str(msg))
+    # Setting the presence:
+    if presence.lower() == 'online':
+        set_status = discord.Status.online
+    elif presence.lower() == 'idle':
+        set_status = discord.Status.idle
+    elif presence.lower() == 'dnd':
+        set_status = discord.Status.dnd
+    elif presence.lower() == 'offline':
+        set_status = discord.Status.offline
+
+    await bot.change_presence(status=set_status,activity=set_activity)
+    await ctx.send(f'Success! New status: {mode[0].upper()}{mode[1:].lower()} {finalmsg}')
+
+@bot.command(pass_context=True)
+@commands.is_owner()
 async def send(ctx,msg,channelname,*args):
     if len(args) != 0:
         await ctx.send('Wrong format! Use: .send "message" channel_name')
