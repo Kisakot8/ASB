@@ -397,7 +397,7 @@ async def addallquotes(ctx):
 @commands.is_owner()
 async def setstatus(ctx,mode,msg,presence='online',link='',*args):
     if (len(args) != 0) or (mode.lower() not in ['playing','streaming','listening','watching','clear']) or (link == '' and mode.lower() == 'streaming') or (presence.lower() not in ['online','idle','dnd','offline']):
-        await ctx.send('Wrong format! Use: .setstatus playing/streaming/listening/watching "message"/clear online/idle/dnd/offline [url if mode=streaming]')
+        await ctx.send('Wrong format! Use: .setstatus playing/streaming/listening/watching "message"/clear online/idle/dnd/offline [link if mode=streaming]')
         return
     clear_activity = False
     if mode.lower() == 'clear':
@@ -510,53 +510,53 @@ async def checkformsg(ctx,channelid: int,msgid: int):
 # ░░░██║░░░███████╗██████╔╝░░░██║░░░██║██║░╚███║╚██████╔╝
 # ░░░╚═╝░░░╚══════╝╚═════╝░░░░╚═╝░░░╚═╝╚═╝░░╚══╝░╚═════╝░
 
-@bot.command(pass_context=True)
-@commands.is_owner()
-async def startconsequences(ctx):
-    await ctx.send(f"{ctx.author.mention}, please mention everyone who is playing (you do not have to mention yourself)")
-    players = []
+# @bot.command(pass_context=True)
+# @commands.is_owner()
+# async def startconsequences(ctx):
+#     await ctx.send(f"{ctx.author.mention}, please mention everyone who is playing (you do not have to mention yourself)")
+#     players = []
 
-    def check(msg, user):
-        nonlocal players
-        players = msg.content.split(" ")
-        allPlayersAreMentions = True
-        players.insert(0, ctx.author.mention)
-        for player in players:
-            if "<@" not in player or ">" not in player:
-                allPlayersAreMentions = False
-            elif players.count(player) > 1:
-                players.remove(player)
-        return allPlayersAreMentions and msg.channel == ctx.channel and user == ctx.author
+#     def check(msg, user):
+#         nonlocal players
+#         players = msg.content.split(" ")
+#         allPlayersAreMentions = True
+#         players.insert(0, ctx.author.mention)
+#         for player in players:
+#             if "<@" not in player or ">" not in player:
+#                 allPlayersAreMentions = False
+#             elif players.count(player) > 1:
+#                 players.remove(player)
+#         return allPlayersAreMentions and msg.channel == ctx.channel and user == ctx.author
     
-    try:
-        msg, ctx.author = await bot.wait_for("message", check=check, timeout = 10.0)
+#     try:
+#         msg, ctx.author = await bot.wait_for("message", check=check, timeout = 10.0)
 
-    except asyncio.TimeoutError:
-        await ctx.send(f"Command expired, {ctx.author.mention} didn't enter a number :(")
+#     except asyncio.TimeoutError:
+#         await ctx.send(f"Command expired, {ctx.author.mention} didn't enter a number :(")
     
-    else:
-        ctx.send(f"Great! We're playing with {len(players)} players.")
-        story = ""
-        complete = False
-        while not complete:
-            ctx.send("Alright, let's start the story...")
-            ctx.send(f"{players[0]}, begin with the first word. **The game ends when someone enters 'end'.")
+#     else:
+#         ctx.send(f"Great! We're playing with {len(players)} players.")
+#         story = ""
+#         complete = False
+#         while not complete:
+#             ctx.send("Alright, let's start the story...")
+#             ctx.send(f"{players[0]}, begin with the first word. **The game ends when someone enters 'end'.")
 
-            def storyCheck(msg, user):
-                if len(msg.content.split(" ")) != 1:
-                    ctx.send(f"{user.mention} entered multiple words :(")
-                    return False
-                return len(msg.content.split(" ")) == 1
+#             def storyCheck(msg, user):
+#                 if len(msg.content.split(" ")) != 1:
+#                     ctx.send(f"{user.mention} entered multiple words :(")
+#                     return False
+#                 return len(msg.content.split(" ")) == 1
 
-            for player in players:
-                try:
-                    word = await bot.wait_for("message", check=storyCheck, timeout=15.0)
-                    if word.lower() == "end":
-                        ctx.send(f"Excellent! The final story was: {story}")
-                        return
-                    story += word
-                except asyncio.TimeoutError:
-                    ctx.send(f"{player} took too long (>15s) :(")
+#             for player in players:
+#                 try:
+#                     word = await bot.wait_for("message", check=storyCheck, timeout=15.0)
+#                     if word.lower() == "end":
+#                         ctx.send(f"Excellent! The final story was: {story}")
+#                         return
+#                     story += word
+#                 except asyncio.TimeoutError:
+#                     ctx.send(f"{player} took too long (>15s) :(")
 
 @bot.command(pass_context=True)
 @commands.is_owner()
